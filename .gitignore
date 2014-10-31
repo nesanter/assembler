@@ -1,0 +1,5 @@
+kasm
+*.o
+kasm.tab.c
+kasm.tab.h
+lex.yy.c

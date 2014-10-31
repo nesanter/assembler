@@ -1,0 +1,4 @@
+flex kasm.l && \
+bison -d kasm.y && \
+gcc -c lex.yy.c kasm.tab.c && \
+gcc -Wall -std=gnu99 -o kasm kasm.c bitdef.c idef.c inst.c emit.c lex.yy.o kasm.tab.o
