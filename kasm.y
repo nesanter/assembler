@@ -16,7 +16,7 @@
 %token <llu> NUMERIC
 %token <text> IDENT IDENT_CAPS
 %token ENTER_MICROCODE ENTER_SOURCE
-%token COMMA LP RP LB RB LS RS EQ EOL PERCENT COLON AT PLUS DOT REGMARK OPTION
+%token COMMA LP RP LB RB LS RS EQ EOL PERCENT COLON AT PLUS DOT REGMARK OPTION TILDE
 
 %type <text> any_ident
 %type <llu> bitdef_bits idef_bits idef_bits_list offset base
@@ -64,7 +64,8 @@ bitdef_exp EOL
 ;
 
 bitdef_exp:
-PERCENT IDENT_CAPS bitdef_bits { register_bitdef($2, $3); }
+PERCENT IDENT_CAPS TILDE { register_bitdef($2, 0); }
+| PERCENT IDENT_CAPS bitdef_bits { register_bitdef($2, $3); }
 ;
 
 option_exp:
@@ -107,6 +108,7 @@ idef_tag_term:
 any_ident { $$ = create_tag_empty($1); }
 | any_ident EQ any_ident { $$ = create_tag_ident($1, $3); }
 | any_ident EQ NUMERIC { $$ = create_tag_numeric($1, $3); }
+| any_ident EQ idef_bits { $$ = create_tag_numeric($1, $3); }
 ;
 
 
@@ -120,9 +122,10 @@ src_section_ident:
 %empty { $$ = create_section_ident(NULL, REL_AUTO, 0, NULL); }
 | LB any_ident RB { $$ = create_section_ident($2, REL_AUTO, 0, NULL); }
 | LB NUMERIC RB { $$ = create_section_ident(NULL, ABS, $2, NULL); }
+| LB PLUS any_ident RB { $$ = create_section_ident($3, REL_IDENT, 0, $3); }
 | LB any_ident COMMA NUMERIC RB { $$ = create_section_ident($2, ABS, $4, NULL); }
 | LB any_ident COMMA PLUS any_ident RB { $$ = create_section_ident($2, REL_IDENT, 0, $5); }
- 
+;
 
 src_section:
 src_toplevel_exp

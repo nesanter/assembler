@@ -3,19 +3,10 @@
 
 #include <stdint.h>
 
-/*
-typedef enum {
-    GENERIC,
-    BITDEF, BITDEF_BITS,
-    IDEF, BIT_IMMEDIATE, BIT_DEFINED,
-    TAGNAME, TAGVAL_IDENT, TAGVAL_NUMERIC,
-    LABEL, INST, OPERAND, REGISTER, OFFSET
-} node_type;
-*/
+#define INST_OPCODE_BITS (11)
 
 void warn();
 
-/* toplevel structures */
 typedef struct {
     char *ident;
     uint64_t bits;
@@ -42,6 +33,7 @@ tag* append_tag(tag *a, tag *b);
 
 typedef struct {
     char *ident;
+    uint64_t value;
     uint64_t bits;
     uint64_t n_operands;
     uint64_t n_immediates;
@@ -53,6 +45,7 @@ void register_idef(char *ident, uint64_t bits, tag *tags);
 idef* idef_lookup(char *ident);
 uint64_t get_definitions(idef ***table);
 void print_idefs();
+int has_tag(idef *i, char *ident, uint64_t *value_numeric, char **value_ident);
 
 void set_microcode_bits(uint64_t n);
 uint64_t get_microcode_bits();
@@ -68,7 +61,7 @@ typedef struct {
 } operand;
 
 operand* create_operand(uint64_t base, uint64_t offset1, uint64_t offset2);
-void print_operand();
+void print_operand(FILE *f, operand *o);
 
 typedef enum {
     NONE, SINGLE, DOUBLE, GLOBAL_LABEL, LOCAL_LABEL
@@ -96,7 +89,7 @@ typedef struct s_label {
 int verify_inst(inst *i);
 void register_inst(char *ident, operand *oper1, operand *oper2, operand *oper3, imm_type itype, uint64_t immediate, char *immediate_ident);
 inst* get_instructions();
-void print_instruction(inst *in);
+void print_instruction(FILE *f, inst *in, int real);
 
 typedef enum {
     GLOBAL, LOCAL
@@ -124,6 +117,7 @@ void register_rel_address(uint64_t address);
 void register_abs_address(uint64_t address);
 
 section* section_lookup(char *ident);
+section* section_lookup_reverse(char *ident);
 
 typedef struct {
     char *ident;
@@ -162,7 +156,8 @@ typedef enum {
 } emit_format;
 
 void emit_microcode(FILE *f, int verbose, emit_format format);
-void emit_instructions(FILE *f, int verbose, emit_format format);
-
+void emit_instructions(FILE *f, int verbose, emit_format format, char *secname);
+uint64_t encode_instruction(inst *i);
+uint64_t encode_offset(operand *o);
 
 #endif /* KASM_H */

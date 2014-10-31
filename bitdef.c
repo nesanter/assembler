@@ -58,7 +58,7 @@ void register_bitdef(char *ident, uint64_t def) {
 
 uint64_t bitdef_lookup(char *ident) {
     for (uint64_t i = 0; i < n_bitdefs; i++) {
-        if (strcmp(ident, bitdef_table[i]->ident)) {
+        if (strcmp(ident, bitdef_table[i]->ident) == 0) {
             return bitdef_table[i]->bits;
         }
     }

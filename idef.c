@@ -8,6 +8,7 @@ idef **idef_table;
 uint64_t n_idefs;
 
 uint64_t idef_max_bits = 0;
+uint64_t idef_res_bits = 0;
 
 tag* create_tag_empty(char *ident) {
     tag *t = malloc(sizeof(*t));
@@ -64,6 +65,21 @@ void register_idef(char *ident, uint64_t bits, tag *tags) {
     i->n_operands = 3;
     i->n_immediates = 3;
     i->tags = tags;
+
+    uint64_t rb = 0;
+    char *s;
+    if (has_tag(i, "res", &rb, &s) && s) {
+        fprintf(stderr, "Warning: tag 'res' with non-numeric value, ignoring (line %d)\n", yylineno);
+        warn();
+    }
+
+    if (rb >= (1LU << idef_res_bits)) {
+        fprintf(stderr,"Warning: tag 'res' with value above maximum, ignoring (line %d)\n", yylineno);
+        warn();
+        rb = 0;
+    }
+
+    i->value = n_idefs | (rb << (INST_OPCODE_BITS - idef_res_bits));
 
     /*
     tag *t = tags;
@@ -204,6 +220,15 @@ void set_microcode_bits(uint64_t n) {
     idef_max_bits = n;
 }
 
+void set_reserved_bits(uint64_t n) {
+    if (idef_res_bits > n) {
+        fprintf(stderr, "Warning: option reduces reserved bits below previous value (line %d)\n", yylineno);
+        warn();
+    }
+
+    idef_res_bits = n;
+}
+
 uint64_t get_microcode_bits() {
     return idef_max_bits;
 }
@@ -211,6 +236,8 @@ uint64_t get_microcode_bits() {
 void set_option(char *ident, uint64_t value) {
     if (strcmp(ident, "bits") == 0) {
         set_microcode_bits(value);
+    } else if (strcmp(ident, "reserved_bits") == 0) {
+        set_reserved_bits(value);
     } else {
         fprintf(stderr, "Warning: unknown option %s (line %d)\n", ident, yylineno);
         warn();

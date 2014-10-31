@@ -59,6 +59,7 @@
 "@" { return AT; }
 "+" { return PLUS; }
 "." { return DOT; }
+"~" { return TILDE; }
 
 "(" { return LP; }
 ")" { return RP; }

@@ -130,7 +130,7 @@ section_ident* create_section_ident(char *ident, section_type type, uint64_t bas
     }
 
     if (type == REL_IDENT) {
-        section *base_section = section_lookup(base_ident);
+        section *base_section = section_lookup_reverse(base_ident);
 
         if (!base_section) {
             fprintf(stderr, "Warning: section %s not found prior to use as relative base, assuming 0 (line %d)\n", base_ident, yylineno);
@@ -232,6 +232,16 @@ section* section_lookup(char *ident) {
     return NULL;
 }
 
+section* section_lookup_reverse(char *ident) {
+    for (uint64_t i = n_sections; i > 0; i--) {
+        if (strcmp(ident, section_table[i-1]->ident) == 0) {
+            return section_table[i-1];
+        }
+    }
+
+    return NULL;
+}
+
 void register_rel_address(uint64_t address) {
     current_address += address;
 }
@@ -273,54 +283,57 @@ void print_sections_contents() {
                 l++;
             }
 
-            print_instruction(in);
+            print_instruction(stdout, in, 0);
 
             printf("\n");
         }
     }
 }
 
-void print_instruction(inst *in) {
-    printf("  %s ", in->def->ident);
+void print_instruction(FILE *f, inst *in, int real) {
+    fprintf(f, "  %s ", in->def->ident);
 
     switch (in->type) {
         case NONE:
-            print_operand(in->oper1);
-            printf(", ");
-            print_operand(in->oper2);
-            printf(", ");
-            print_operand(in->oper3);
+            print_operand(f, in->oper1);
+            fprintf(f, ", ");
+            print_operand(f, in->oper2);
+            fprintf(f, ", ");
+            print_operand(f, in->oper3);
             break;
         case SINGLE:
-            print_operand(in->oper1);
-            printf(", ");
-            print_operand(in->oper2);
-            printf(", %lu", in->immediate);
+            print_operand(f, in->oper1);
+            fprintf(f, ", ");
+            print_operand(f, in->oper2);
+            fprintf(f, ", %lu", in->immediate);
             break;
         case DOUBLE:
         case GLOBAL_LABEL:
         case LOCAL_LABEL:
-            print_operand(in->oper1);
-            printf(", %lu", in->immediate);
+            print_operand(f, in->oper1);
+            fprintf(f, ", %lu", in->immediate);
             break;
         default:
-            printf("oops");
+            fprintf(f, "oops");
     }
 
-    printf(" @ %lu", in->address);
+    if (real)
+        fprintf(f, " @ %lu", in->real_address);
+    else
+        fprintf(f, " @ %lu", in->address);
 }
 
 
-void print_operand(operand *o) {
+void print_operand(FILE *f, operand *o) {
     if (!o) {
-        printf("(null)");
+        fprintf(f, "(null)");
         return;
     }
-    printf("r%lu", o->base);
+    fprintf(f, "r%lu", o->base);
     if (o->offset1) {
-        printf("[%lu]", o->offset1 - 1);
+        fprintf(f, "[%lu]", o->offset1 - 1);
         if (o->offset2) {
-            printf("[%lu]", o->offset2 - 1);
+            fprintf(f, "[%lu]", o->offset2 - 1);
         }
     }
 }
@@ -395,11 +408,14 @@ int verify_inst(inst *i) {
     return 0;
 }
 
-inst* get_instructions() {
+inst* get_instructions(char *secname) {
     inst *tail = NULL;
     uint64_t addr = 0, newaddr;
 
     for (uint64_t i = 0; i < n_sections; i++) {
+        if (secname && (strcmp(section_table[i]->ident, secname) != 0))
+            continue;
+
         for (uint64_t j = 0; j < section_table[i]->n_insts; j++) {
             newaddr = section_table[i]->inst_table[j]->address + section_table[i]->base;
             if (newaddr > addr || !tail) {

@@ -17,29 +17,29 @@ unsigned long long int ndefines;
 unsigned long long preproc_depth = 0;
 
 int errcount = 0;
+int werror = 0;
 
 extern FILE *yyin;
-
-typedef enum {
-    M_NONE, M_INFO,
-    M_ASSEMBLE, M_MICROCODE, M_ASSEMBLE_MICROCODE
-} mode;
 
 int verbose = 0;
 emit_format format;
 
 int main(int argc, char **argv) {
 
-    mode m = M_NONE;
     char *secname = NULL;
     char *outfname = NULL;
     char *ucoutfname = NULL;
+    
+    int minfo = 0;
+    int massemble = 0;
+    int mmicrocode = 0;
 
     int c;
     while (1) {
         static struct option long_options[] = 
         {
             {"verbose", no_argument, &verbose, 1},
+            {"werror", no_argument, &werror, 1},
             {"info", no_argument, 0, 'i'},
             {"out", required_argument, 0, 'o'},
             {"assemble", optional_argument, 0, 'a'},
@@ -59,30 +59,16 @@ int main(int argc, char **argv) {
             case 0:
                 break;
             case 'i':
-                if (m != M_NONE)
-                    fprintf(stderr, "Warning: --info overrides previous mode\n");
-                m = M_INFO;
+                minfo = 1;
                 break;
             case 'a':
-                if (m == M_MICROCODE)
-                    m = M_ASSEMBLE_MICROCODE;
-                else {
-                    if (m != M_NONE)
-                        fprintf(stderr, "Warning: --assemble overrides previous mode\n");
-                    m = M_ASSEMBLE;
-                }
+                massemble = 1;
                 if (optarg) {
                     secname = strdup(optarg);
                 }
                 break;
             case 'm':
-                if (m == M_ASSEMBLE)
-                    m = M_ASSEMBLE_MICROCODE;
-                else {
-                    if (m != M_NONE)
-                        fprintf(stderr, "Warning: --microcode overrides previous mode\n");
-                    m = M_MICROCODE;
-                }
+                mmicrocode = 1;
                 if (optarg) {
                     ucoutfname = optarg;
                 }
@@ -91,12 +77,15 @@ int main(int argc, char **argv) {
                 outfname = optarg;
                 break;
             case 'd':
-                if (m != M_NONE)
+                if (minfo || massemble || mmicrocode)
                     fprintf(stderr, "Warning: --dummy overrides previous mode\n");
-                m = M_NONE;
+                minfo = 0;
+                massemble = 0;
+                mmicrocode = 0;
                 break;
             case 'v':
                 verbose = 1;
+                break;
             case 'f':
                 if (strcmp(optarg, "memh") == 0) {
                     format = EF_MEMH;
@@ -145,74 +134,60 @@ int main(int argc, char **argv) {
         i = i->next;
     }
 */
-
-    switch (m) {
-        case M_NONE:
-            break;
-        case M_INFO:
-            print_bitdefs();
-            print_idefs();
-            print_sections();
-            print_sections_contents();
-            break;
-        case M_ASSEMBLE:
+    if (minfo) {
+        print_bitdefs();
+        print_idefs();
+        print_sections();
+        print_sections_contents();
+    }
+    if (massemble) {
+        if (verbose) {
             if (secname)
                 printf("(assemble section %s)\n", secname);
             else
                 printf("(assemble all)\n");
+        }
 
-            FILE *out;
-            if (outfname) {
-                out = fopen(outfname, "w");
+        FILE *out;
+        if (outfname) {
+            out = fopen(outfname, "w");
 
-                if (!f) {
-                    perror(ucoutfname);
-                    return 1;
-                }
-            } else {
-                out = stdout;
+            if (!f) {
+                perror(ucoutfname);
+                return 1;
+            }
+        } else {
+            out = stdout;
+        }
+        
+        emit_instructions(out, verbose, format, secname);
+    }
+    if (mmicrocode) {
+        if (verbose) {
+            printf("(generate microcode)\n");
+        }
+        FILE *ucout;
+        if (ucoutfname) {
+            ucout = fopen(ucoutfname, "w");
+
+            if (!ucout) {
+                perror(ucoutfname);
+                return 1;
             }
 
-            emit_instructions(out, verbose, format);
-            break;
-        case M_MICROCODE:
-            ;
-            FILE *ucout;
-            if (ucoutfname) {
-                ucout = fopen(ucoutfname, "w");
+        } else {
+            ucout = stdout;
+        }
 
-                if (!ucout) {
-                    perror(ucoutfname);
-                    return 1;
-                }
-
-            } else {
-                ucout = stdout;
-            }
-
-            emit_microcode(ucout, verbose, format);
-            break;
-        case M_ASSEMBLE_MICROCODE:
-            printf("(emit uc)\n");
-            printf("--> to %s\n", ucoutfname);
-
-            if (secname)
-                printf("(assemble section %s)\n", secname);
-            else
-                printf("(assemble all)\n");
-            if (outfname)
-                printf("--> to %s\n", outfname);
-            else
-                printf("--> to stdout\n");
-            break;
-        default:
-            fprintf(stderr, "unknown mode\n");
-
+        emit_microcode(ucout, verbose, format);
     }
 }
 
 void warn() {
-    //do nothing
+    if (werror) {
+        fprintf(stderr, "Aborting because of prior warning.\n");
+        exit(1);
+    }
 }
 
 /*
