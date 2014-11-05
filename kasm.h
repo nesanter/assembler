@@ -152,12 +152,14 @@ void print_bin(FILE *f, uint64_t n, uint64_t bits);
 void print_hex(FILE *f, uint64_t n, uint64_t bits);
 
 typedef enum {
-    EF_MEMB, EF_MEMH
+    EF_MEMB, EF_MEMH, EF_TUPLE
 } emit_format;
 
 void emit_microcode(FILE *f, int verbose, emit_format format);
 void emit_instructions(FILE *f, int verbose, emit_format format, char *secname);
 uint64_t encode_instruction(inst *i);
 uint64_t encode_offset(operand *o);
+void emit_tuple_operand(FILE *f, operand *o);
+void emit_tuple(FILE *f, inst *i);
 
 #endif /* KASM_H */

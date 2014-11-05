@@ -11,6 +11,8 @@ void emit_instructions(FILE *f, int verbose, emit_format format, char *secname) 
             print_bin(f, encode_instruction(i), 32);
         else if (format == EF_MEMH)
             print_hex(f, encode_instruction(i), 32);
+        else if (format == EF_TUPLE)
+            emit_tuple(f, i);
         if (verbose) {
             fprintf(f, " // ");
             print_instruction(f, i, 1);
@@ -132,4 +134,42 @@ uint64_t encode_offset(operand *o) {
     if (o->offset1 == 1)
         return 2 + o->offset2;
     return 4 + o->offset2;
+}
+
+void emit_tuple(FILE *f, inst *i) {
+    //{ {name, bits} , {type, {b, o, o}/{imm}}, ... }
+    fprintf(f, "{{%s,%lu}", i->def->ident, i->def->bits);
+
+    emit_tuple_operand(f, i->oper1);
+    emit_tuple_operand(f, i->oper2);
+    emit_tuple_operand(f, i->oper3);
+
+
+    switch (i->type) {
+        case NONE:
+            fprintf(f, "{0,0}");
+            break;
+        case SINGLE:
+            fprintf(f, "{1,%lu}", i->immediate);
+            break;
+        case DOUBLE:
+        case GLOBAL_LABEL:
+        case LOCAL_LABEL:
+            fprintf(f, "{2,%lu}", i->immediate);
+            break;
+    }
+
+    fprintf(f, "}");
+}
+
+void emit_tuple_operand(FILE *f, operand *o) {
+    if (o) {
+        fprintf(f, "{%lu,%c,%c}",
+                o->base,
+                (o->offset1 == 0) ? 'x' : '0' + (char)(o->offset1 - 1),
+                (o->offset2 == 0) ? 'x' : '0' + (char)(o->offset2 - 1)
+               );
+    } else {
+        fprintf(f, "{}");
+    }
 }

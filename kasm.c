@@ -91,6 +91,8 @@ int main(int argc, char **argv) {
                     format = EF_MEMH;
                 } else if (strcmp(optarg, "memb") == 0) {
                     format = EF_MEMB;
+                } else if (strcmp(optarg, "tuple") == 0) {
+                    format = EF_TUPLE;
                 } else {
                     fprintf(stderr, "Warning: --format: unknown format\n");
                 }
